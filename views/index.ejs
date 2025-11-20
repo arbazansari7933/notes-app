@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Notes App</title>
+
+    <!-- Simple styling -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .note {
+            border: 1px solid #ccc;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .note-title {
+            font-size: 18px;
+            margin: 0;
+            font-weight: bold;
+        }
+        .note-actions a {
+            margin-right: 10px;
+            text-decoration: none;
+            color: blue;
+        }
+        .add-btn {
+            padding: 10px 15px;
+            background: #0088ff;
+            display: inline-block;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1><%= siteName %></h1>
+
+    <!-- Add Note Button -->
+    <a class="add-btn" href="/add">+ Add New Note</a>
+    <br>
+    <label>Search:</label>
+    <form action="/search" method="POST">
+        <input 
+            type="text" 
+            name="search" 
+            required
+        >
+    <button type="submit">search</button>
+    </form>
+    <br>
+    <br>
+    <!-- Notes List -->
+    <% if (notes.length === 0) { %>
+        <p>No notes yet. Create one!</p>
+    <% } %>
+
+    <% notes.forEach(note => { %>
+        <div class="note">
+            <p class="note-title"><%= note.title %></p>
+            <p><%= note.content.substring(0, 60) %>...</p>
+
+            <div class="note-actions">
+                <a href="/note/<%= note._id %>">View</a>
+                <a href="/edit/<%= note._id %>">Edit</a>
+                <a href="/delete/<%= note._id %>" 
+                   onclick="return confirm('Delete this note?')"
+                   style="color:red;">
+                   Delete
+                </a>
+            </div>
+        </div>
+    <% }) %>
+
+</body>
+</html>

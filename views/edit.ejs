@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Note</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        form {
+            width: 350px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            margin-bottom: 15px;
+        }
+        button {
+            padding: 10px 15px;
+            background: #0088ff;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        a {
+            text-decoration: none;
+            color: #0088ff;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Edit Note</h1>
+
+    <!-- Back -->
+    <a href="/note/<%= note._id %>">← Back to Note</a>
+
+    <form action="/edit/<%= note._id %>" method="POST">
+
+        <label>Title:</label>
+        <input 
+            type="text" 
+            name="title" 
+            value="<%= note.title %>" 
+            required
+        >
+
+        <label>Content:</label>
+        <textarea name="content" rows="5" required><%= note.content %></textarea>
+
+        <button type="submit">Submit</button>
+    </form>
+
+</body>
+</html>

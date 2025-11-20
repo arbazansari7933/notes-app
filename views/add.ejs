@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Note</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        form {
+            width: 350px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            margin-bottom: 15px;
+        }
+        button {
+            padding: 10px 15px;
+            background: #0088ff;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        a {
+            text-decoration: none;
+            color: #0088ff;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Add New Note</h1>
+
+    <!-- Back to Home -->
+    <a href="/">← Back to Notes</a>
+
+    <form action="/add" method="POST">
+        <label>Title:</label>
+        <input type="text" name="title" required>
+
+        <label>Content:</label>
+        <textarea name="content" rows="5" required></textarea>
+
+        <button type="submit">Save Note</button>
+    </form>
+
+</body>
+</html>
