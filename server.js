@@ -40,7 +40,7 @@ app.get('/note/:id', async (req, res) => {
 });
 app.get('/delete/:id', async (req, res) => {
     const id=req.params.id;
-    let note=await Note.findOneAndDelete(id);
+    let note=await Note.findByIdAndDelete(id);
    res.redirect("/")
 });
 app.get('/edit/:id', async (req, res) => {
