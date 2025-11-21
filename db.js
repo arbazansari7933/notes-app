@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
+dotenv.config();
 
-mongoose.connect("mongodb://127.0.0.1:27017/notesDB")
-  .then(() => console.log("MongoDB Connected"))
+mongoose
+  .connect(process.env.MONGO_URL)
+  .then(() => console.log("MongoDB Atlas Connected"))
   .catch((err) => console.log("DB Error:", err));
