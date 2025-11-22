@@ -2,15 +2,18 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import "./db.js";
-import Note from "./models/notes.js";
-
-//Auth
 import bcrypt from "bcryptjs";
-import User from "./models/user.js";
+import cookieParser from "cookie-parser";
+import jwt from "jsonwebtoken";
 
+
+import User from "./models/user.js";
+import Note from "./models/notes.js";
 
 const app = express();
 const port = 3000;
+
+const JWT_SECRET = "arbaz&!@#$%";
 
 // Fix __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -19,77 +22,83 @@ const __dirname = path.dirname(__filename);
 // Middlewares
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-//Auth middleware
-function isLoggedIn(req, res, next) {
-    if (!req.session.userId) {
-        return res.redirect("/login");
-    }
-    
-    next();
-}
+app.use(cookieParser()); // important for reading token from cookies
 
-
-
-// EJS settings
+// EJS
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
 
-//Auth
-import session from "express-session";
+// --------------------- JWT AUTH MIDDLEWARE ---------------------
+function auth(req, res, next) {
+    const token = req.cookies.token; // read JWT stored in cookie
+    if (!token) return res.redirect("/login");
 
-app.use(session({
-    secret: "secretkey",
-    resave: false,
-    saveUninitialized: false
-}));
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.userId = decoded.id; // attach userId to request
+        next();
+    } catch (error) {
+        return res.redirect("/login");
+    }
+}
+// ----------------------------------------------------------------
 
+
+// ------------------------- SIGNUP -------------------------------
 app.post("/signup", async (req, res) => {
     const { name, email, password } = req.body;
 
-    // 1. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 2. Save user
-    const user = new User({
+    await User.create({
         name,
         email,
         password: hashedPassword
     });
 
-    await user.save();
-
     return res.redirect("/login");
-
 });
+// ----------------------------------------------------------------
 
+
+// -------------------------- LOGIN -------------------------------
 app.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
-    // 1. Find user
     const user = await User.findOne({ email });
-    if (!user){ 
-        return res.send("User not found");
-    }
-    // 2. Compare passwords
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.send("Incorrect password");
+    if (!user) return res.status(400).send("User not found");
 
-    // 3. Create session
-    req.session.userId = user._id;
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).send("Incorrect password");
+
+    // Create token
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, {
+        expiresIn: "1d"
+    });
+
+    // Store token inside HttpOnly cookie
+    res.cookie("token", token, {
+        httpOnly: true,
+        secure: false, // change to true if using HTTPS
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
 
     return res.redirect("/");
-    
 });
+// ----------------------------------------------------------------
 
-app.get("/notes", isLoggedIn, (req, res) => {
-    res.send("Your notes...");
-});
+
+// -------------------------- LOGOUT ------------------------------
 app.get("/logout", (req, res) => {
-    req.session.destroy(() => {
-        res.redirect("/login");
-    });
+    res.clearCookie("token"); // Remove JWT cookie
+    res.redirect("/login");
 });
+// ----------------------------------------------------------------
+
+
+// ---------------------------- PAGES -----------------------------
 app.get("/signup", (req, res) => {
     res.render("signup");
 });
@@ -97,58 +106,64 @@ app.get("/signup", (req, res) => {
 app.get("/login", (req, res) => {
     res.render("login");
 });
+// ----------------------------------------------------------------
 
-//
-app.get('/', isLoggedIn, async (req, res) => {
-    const notes=await Note.find({ userId: req.session.userId }).sort({createdAt:-1});
-    res.render("index", {siteName:"Notes app", notes})
 
-});
-app.get('/add', isLoggedIn, async (req, res) => {
-   res.render("add");
+// ---------------------- PROTECTED ROUTES ------------------------
+app.get("/", auth, async (req, res) => {
+    const notes = await Note.find({ userId: req.userId }).sort({ createdAt: -1 });
+    res.render("index", { siteName: "Notes app", notes });
 });
 
-app.post('/add', isLoggedIn, async (req, res) => {
-   const{title, content}=req.body;
-   await Note.create({title, content,userId: req.session.userId})
-   res.redirect("/")
+app.get("/add", auth, (req, res) => res.render("add"));
 
+app.post("/add", auth, async (req, res) => {
+    const { title, content } = req.body;
+    await Note.create({ title, content, userId: req.userId });
+    res.redirect("/");
 });
-app.get('/note/:id', isLoggedIn, async (req, res) => {
-    const id=req.params.id;
-    let note = await Note.findOne({ _id: id, userId: req.session.userId });
-   res.render("view",{note});
-});
-app.get('/delete/:id', isLoggedIn, async (req, res) => {
-    const id=req.params.id;
-    await Note.findOneAndDelete({ _id: id, userId: req.session.userId });
-   res.redirect("/")
-});
-app.get('/edit/:id', isLoggedIn, async (req, res) => {
-    const id=req.params.id;
-    let note = await Note.findOne({ _id: id, userId: req.session.userId });
-    res.render("edit", {note})
 
+app.get("/note/:id", auth, async (req, res) => {
+    const note = await Note.findOne({ _id: req.params.id, userId: req.userId });
+    res.render("view", { note });
 });
-app.post('/edit/:id', isLoggedIn, async (req, res) => {
-    const id=req.params.id;
-   const{title, content}=req.body;
-await Note.findOneAndUpdate(
-    { _id: id, userId: req.session.userId },
-    { title, content }
-);
 
-res.redirect("/")
+app.get("/delete/:id", auth, async (req, res) => {
+    await Note.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    res.redirect("/");
 });
-app.post('/search', isLoggedIn, async (req, res) => { 
-   const search=req.body.search;
-   let results=await Note.find({userId: req.session.userId
-,title: { $regex: search, $options: "i" }})
-   if(!results){
-    res.send("No results found")
-   }
-   res.render("search", {query: search, results})
+
+app.get("/edit/:id", auth, async (req, res) => {
+    const note = await Note.findOne({ _id: req.params.id, userId: req.userId });
+    res.render("edit", { note });
 });
+
+app.post("/edit/:id", auth, async (req, res) => {
+    const { title, content } = req.body;
+
+    await Note.findOneAndUpdate(
+        { _id: req.params.id, userId: req.userId },
+        { title, content }
+    );
+
+    res.redirect("/");
+});
+
+app.post("/search", auth, async (req, res) => {
+    const search = req.body.search;
+
+    const results = await Note.find({
+        userId: req.userId,
+        title: { $regex: search, $options: "i" }
+    });
+
+    res.render("search", { query: search, results });
+});
+// ----------------------------------------------------------------
+
+
+// -------------------------- SERVER ------------------------------
 app.listen(port, () => {
     console.log("Server running at http://localhost:" + port);
 });
+// ----------------------------------------------------------------
