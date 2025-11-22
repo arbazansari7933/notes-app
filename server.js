@@ -24,6 +24,7 @@ function isLoggedIn(req, res, next) {
     if (!req.session.userId) {
         return res.redirect("/login");
     }
+    
     next();
 }
 
@@ -67,8 +68,9 @@ app.post("/login", async (req, res) => {
 
     // 1. Find user
     const user = await User.findOne({ email });
-    if (!user) return res.send("User not found");
-
+    if (!user){ 
+        return res.send("User not found");
+    }
     // 2. Compare passwords
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.send("Incorrect password");
